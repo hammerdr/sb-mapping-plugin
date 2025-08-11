@@ -1,8 +1,8 @@
 {
   "imports": {
-    "@silverbulletmd/silverbullet": "jsr:@silverbulletmd/silverbullet@^2.0.0"
+    "@silverbulletmd/silverbullet": "jsr:@silverbulletmd/silverbullet@^2.0.0-pre"
   },
   "tasks": {
-    "build": "silverbullet plug:compile dnd-mapping.plug.yaml"
+    "build": "deno run -A https://github.com/silverbulletmd/silverbullet/releases/download/edge/plug-compile.js -c deno.json dnd-mapping.plug.yaml"
   }
 }

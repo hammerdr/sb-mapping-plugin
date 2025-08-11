@@ -68,6 +68,20 @@ graph TD
 
 ## Installation
 
+### For SilverBullet v2
+
+1. Add the plugin to your `CONFIG` page:
+
+```lua
+config.set("plugs", {
+  "github:yourusername/sb-mapping-plugin/dnd-mapping.plug.js"
+})
+```
+
+2. Run the `Plugs: Update` command in SilverBullet
+
+### Manual Installation (v1 and v2)
+
 1. Download the `dnd-mapping.plug.js` file
 2. Copy it to your SilverBullet space's `_plug/` folder
 3. The plugin will be automatically loaded
@@ -83,9 +97,12 @@ To build the plugin from source:
 
 ### Development Commands
 
-- `deno task build` - Build the plugin
-- `deno task watch` - Build and watch for changes
-- `deno task dev` - Same as watch
+- `deno task build` - Build the plugin using SilverBullet v2 build system
+
+### Requirements
+
+- Deno 1.40+
+- SilverBullet v2.0.0-pre or later
 
 ## Features in Detail
 

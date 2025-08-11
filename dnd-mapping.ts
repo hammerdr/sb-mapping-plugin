@@ -1,5 +1,7 @@
+import { editor } from "@silverbulletmd/silverbullet/syscalls";
+
 export async function testCommand() {
-  console.log("Test command works!");
+  await editor.flashNotification("D&D Mapping Plugin is working!");
 }
 
 export async function widget(bodyText: string): Promise<{ html: string; script?: string }> {
