@@ -60,27 +60,49 @@ export class GraphRenderer {
     const layout = new Map<string, { x: number; y: number }>();
     const nodes = this.graph.nodes;
     
-    // Simple force-directed layout algorithm
-    // Initialize positions
-    nodes.forEach((node, index) => {
-      const angle = (index / nodes.length) * 2 * Math.PI;
-      const radius = Math.min(300, 50 + nodes.length * 20);
+    if (nodes.length === 0) return layout;
+    
+    // Use Fruchterman-Reingold force-directed algorithm
+    return this.fruchtermanReingoldLayout();
+  }
+
+
+
+  private fruchtermanReingoldLayout(): Map<string, { x: number; y: number }> {
+    const layout = new Map<string, { x: number; y: number }>();
+    const nodes = this.graph.nodes;
+    const edges = this.graph.edges;
+    
+    // Layout parameters - adjusted for tighter, more readable layouts
+    const width = 800;
+    const height = 600;
+    const area = width * height;
+    const k = Math.sqrt(area / nodes.length) * 0.6; // Reduced optimal distance for tighter layout
+    const iterations = 100; // More iterations for better convergence
+    
+    // Initialize positions randomly in a smaller central area for better convergence
+    const initWidth = width * 0.6;
+    const initHeight = height * 0.6;
+    const offsetX = (width - initWidth) / 2;
+    const offsetY = (height - initHeight) / 2;
+    
+    nodes.forEach(node => {
       layout.set(node.id, {
-        x: 400 + Math.cos(angle) * radius,
-        y: 300 + Math.sin(angle) * radius
+        x: offsetX + Math.random() * initWidth,
+        y: offsetY + Math.random() * initHeight
       });
     });
-
-    // Apply force-directed positioning (simplified)
-    for (let iteration = 0; iteration < 50; iteration++) {
+    
+    // Temperature schedule - starts hot and cools down more gradually
+    let temperature = k * 2; // Start with temperature proportional to k
+    const cooling = 0.98; // Slower cooling for better convergence
+    
+    for (let iter = 0; iter < iterations; iter++) {
+      // Calculate repulsive forces between all pairs of nodes
       const forces = new Map<string, { x: number; y: number }>();
+      nodes.forEach(node => forces.set(node.id, { x: 0, y: 0 }));
       
-      // Initialize forces
-      nodes.forEach(node => {
-        forces.set(node.id, { x: 0, y: 0 });
-      });
-
-      // Repulsion between nodes
+      // Repulsive forces (all nodes repel each other)
       for (let i = 0; i < nodes.length; i++) {
         for (let j = i + 1; j < nodes.length; j++) {
           const node1 = nodes[i];
@@ -90,11 +112,14 @@ export class GraphRenderer {
           
           const dx = pos1.x - pos2.x;
           const dy = pos1.y - pos2.y;
-          const distance = Math.sqrt(dx * dx + dy * dy) || 1;
+          const distance = Math.sqrt(dx * dx + dy * dy) || 0.01; // Avoid division by zero
           
-          const repulsion = 1000 / (distance * distance);
-          const fx = (dx / distance) * repulsion;
-          const fy = (dy / distance) * repulsion;
+          // Fruchterman-Reingold repulsive force: fr(d) = k²/d
+          // Add minimum distance to prevent excessive repulsion at close range
+          const effectiveDistance = Math.max(distance, k * 0.1);
+          const repulsiveForce = (k * k) / effectiveDistance;
+          const fx = (dx / distance) * repulsiveForce;
+          const fy = (dy / distance) * repulsiveForce;
           
           const force1 = forces.get(node1.id)!;
           const force2 = forces.get(node2.id)!;
@@ -105,44 +130,279 @@ export class GraphRenderer {
           force2.y -= fy;
         }
       }
-
-      // Attraction along edges
-      this.graph.edges.forEach(edge => {
+      
+      // Attractive forces (connected nodes attract each other)
+      edges.forEach(edge => {
         const pos1 = layout.get(edge.from)!;
         const pos2 = layout.get(edge.to)!;
         
         const dx = pos2.x - pos1.x;
         const dy = pos2.y - pos1.y;
-        const distance = Math.sqrt(dx * dx + dy * dy) || 1;
+        const distance = Math.sqrt(dx * dx + dy * dy) || 0.01;
         
-        const attraction = distance * 0.01;
-        const fx = (dx / distance) * attraction;
-        const fy = (dy / distance) * attraction;
+        // Fruchterman-Reingold attractive force: fa(d) = d²/k
+        // Cap the attractive force to prevent nodes from getting too close
+        const maxAttractiveDistance = k * 3;
+        const cappedDistance = Math.min(distance, maxAttractiveDistance);
+        const attractiveForce = (cappedDistance * cappedDistance) / k;
+        const fx = (dx / distance) * attractiveForce;
+        const fy = (dy / distance) * attractiveForce;
         
         const force1 = forces.get(edge.from)!;
         const force2 = forces.get(edge.to)!;
         
+        // Apply attractive force (nodes pull toward each other)
         force1.x += fx;
         force1.y += fy;
         force2.x -= fx;
         force2.y -= fy;
       });
-
-      // Apply forces
+      
+      // Apply forces with temperature-based displacement
       nodes.forEach(node => {
         const pos = layout.get(node.id)!;
         const force = forces.get(node.id)!;
         
-        pos.x += force.x * 0.1;
-        pos.y += force.y * 0.1;
+        const displacement = Math.sqrt(force.x * force.x + force.y * force.y) || 0.01;
+        const limitedDisplacement = Math.min(displacement, temperature);
         
-        // Keep within bounds
-        pos.x = Math.max(50, Math.min(750, pos.x));
-        pos.y = Math.max(50, Math.min(550, pos.y));
+        pos.x += (force.x / displacement) * limitedDisplacement;
+        pos.y += (force.y / displacement) * limitedDisplacement;
+        
+        // Keep nodes within bounds
+        pos.x = Math.max(50, Math.min(width - 50, pos.x));
+        pos.y = Math.max(50, Math.min(height - 50, pos.y));
       });
+      
+      // Cool down temperature
+      temperature *= cooling;
     }
-
+    
+    // Post-processing: resolve any remaining overlaps
+    this.resolveOverlaps(layout, k * 0.8);
+    
     return layout;
+  }
+
+  private resolveOverlaps(layout: Map<string, { x: number; y: number }>, minDistance: number): void {
+    const nodes = Array.from(layout.keys());
+    const maxIterations = 10;
+    
+    for (let iter = 0; iter < maxIterations; iter++) {
+      let hasOverlap = false;
+      
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          const pos1 = layout.get(nodes[i])!;
+          const pos2 = layout.get(nodes[j])!;
+          
+          const dx = pos1.x - pos2.x;
+          const dy = pos1.y - pos2.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          
+          if (distance < minDistance) {
+            hasOverlap = true;
+            
+            // Calculate separation needed
+            const separation = (minDistance - distance) / 2 + 1;
+            const angle = Math.atan2(dy, dx);
+            
+            // Move nodes apart
+            pos1.x += Math.cos(angle) * separation;
+            pos1.y += Math.sin(angle) * separation;
+            pos2.x -= Math.cos(angle) * separation;
+            pos2.y -= Math.sin(angle) * separation;
+            
+            // Keep within bounds
+            pos1.x = Math.max(50, Math.min(750, pos1.x));
+            pos1.y = Math.max(50, Math.min(550, pos1.y));
+            pos2.x = Math.max(50, Math.min(750, pos2.x));
+            pos2.y = Math.max(50, Math.min(550, pos2.y));
+          }
+        }
+      }
+      
+      if (!hasOverlap) break;
+    }
+  }
+
+
+    });
+  }
+
+  private getRoundRobinPosition(
+    index: number,
+    totalNodes: number,
+    layer: number,
+    gridSize: number,
+    centerX: number,
+    centerY: number
+  ): { x: number; y: number } {
+    const distance = layer * gridSize;
+    
+    // Round-robin pattern: N, S, NE, SW, NW, SE, E, W
+    const directions = [
+      { x: 0, y: -1 },       // N (North)
+      { x: 0, y: 1 },        // S (South)
+      { x: 0.707, y: -0.707 }, // NE (Northeast)
+      { x: -0.707, y: 0.707 }, // SW (Southwest)
+      { x: -0.707, y: -0.707 }, // NW (Northwest)
+      { x: 0.707, y: 0.707 },  // SE (Southeast)
+      { x: 1, y: 0 },        // E (East)
+      { x: -1, y: 0 }        // W (West)
+    ];
+    
+    // Use round-robin to assign positions, ensuring no duplicates
+    const direction = directions[index % directions.length];
+    
+            // Base distance for this layer
+            let adjustedDistance = distance;
+            
+            // If we have more nodes than directions, place them in concentric rings
+            if (index >= directions.length) {
+              const ringNumber = Math.floor(index / directions.length);
+              adjustedDistance = distance + (ringNumber * gridSize * 0.5); // Smaller increments for additional rings
+            }
+    
+    return {
+      x: centerX + direction.x * adjustedDistance,
+      y: centerY + direction.y * adjustedDistance
+    };
+  }
+
+  private findBestPositionNearConnected(
+    nodeId: string, 
+    layout: Map<string, { x: number; y: number }>
+  ): { x: number; y: number } | null {
+    const connectedNodes = this.graph.edges
+      .filter(edge => edge.from === nodeId || edge.to === nodeId)
+      .map(edge => edge.from === nodeId ? edge.to : edge.from)
+      .filter(id => layout.has(id));
+    
+    if (connectedNodes.length === 0) return null;
+    
+    // Find the best connected node to place near (prefer the first one placed)
+    const referenceNode = connectedNodes[0];
+    const refPos = layout.get(referenceNode)!;
+    
+    // Use round-robin pattern around the reference node: N, S, NE, SW, NW, SE, E, W
+    const gridSize = 90;
+    const directions = [
+      { x: 0, y: -1 },       // N (North)
+      { x: 0, y: 1 },        // S (South)
+      { x: 0.707, y: -0.707 }, // NE (Northeast)
+      { x: -0.707, y: 0.707 }, // SW (Southwest)
+      { x: -0.707, y: -0.707 }, // NW (Northwest)
+      { x: 0.707, y: 0.707 },  // SE (Southeast)
+      { x: 1, y: 0 },        // E (East)
+      { x: -1, y: 0 }        // W (West)
+    ];
+    
+    // Find the best available position around the reference node
+    for (const direction of directions) {
+      const candidate = {
+        x: refPos.x + direction.x * gridSize,
+        y: refPos.y + direction.y * gridSize
+      };
+      
+      // Check if this position has minimal overlap
+      const overlapScore = this.calculateOverlapScore(candidate, layout);
+      if (overlapScore < 100) { // Acceptable overlap threshold
+        return this.adjustForOverlaps(candidate, layout, 70);
+      }
+    }
+    
+    // If no good position found, try with larger distance
+    for (const direction of directions) {
+      const candidate = {
+        x: refPos.x + direction.x * gridSize * 1.5,
+        y: refPos.y + direction.y * gridSize * 1.5
+      };
+      
+      const overlapScore = this.calculateOverlapScore(candidate, layout);
+      if (overlapScore < 200) {
+        return this.adjustForOverlaps(candidate, layout, 70);
+      }
+    }
+    
+    return null; // Let the fallback positioning handle it
+  }
+
+  private calculateOverlapScore(pos: { x: number; y: number }, layout: Map<string, { x: number; y: number }>): number {
+    let score = 0;
+    const minDistance = 60;
+    
+    for (const existingPos of layout.values()) {
+      const dx = pos.x - existingPos.x;
+      const dy = pos.y - existingPos.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      
+      if (distance < minDistance) {
+        score += (minDistance - distance) * (minDistance - distance);
+      }
+    }
+    
+    return score;
+  }
+
+  private adjustForOverlaps(
+    pos: { x: number; y: number }, 
+    layout: Map<string, { x: number; y: number }>,
+    minDistance: number
+  ): { x: number; y: number } {
+    let adjusted = { ...pos };
+    let attempts = 0;
+    const maxAttempts = 20;
+    
+    while (attempts < maxAttempts) {
+      let hasOverlap = false;
+      
+      for (const existingPos of layout.values()) {
+        const dx = adjusted.x - existingPos.x;
+        const dy = adjusted.y - existingPos.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance < minDistance) {
+          // Push away from overlap
+          const pushDistance = minDistance - distance + 10;
+          const angle = Math.atan2(dy, dx);
+          adjusted.x += Math.cos(angle) * pushDistance;
+          adjusted.y += Math.sin(angle) * pushDistance;
+          hasOverlap = true;
+        }
+      }
+      
+      if (!hasOverlap) break;
+      attempts++;
+    }
+    
+    // Keep within bounds
+    adjusted.x = Math.max(50, Math.min(750, adjusted.x));
+    adjusted.y = Math.max(50, Math.min(550, adjusted.y));
+    
+    return adjusted;
+  }
+
+  private placeUnconnectedNodes(
+    nodes: LocationNode[], 
+    layout: Map<string, { x: number; y: number }>,
+    gridSize: number,
+    centerX: number,
+    centerY: number
+  ): void {
+    // Place unconnected nodes in a separate area
+    const startX = centerX + 300;
+    const startY = centerY - (nodes.length * gridSize) / 2;
+    
+    nodes.forEach((node, index) => {
+      const pos = {
+        x: startX,
+        y: startY + index * gridSize
+      };
+      
+      const finalPos = this.adjustForOverlaps(pos, layout, gridSize * 0.8);
+      layout.set(node.id, finalPos);
+    });
   }
 
   private renderEdges(group: SVGElement, layout: Map<string, { x: number; y: number }>): void {

@@ -104,7 +104,7 @@ export class MermaidParser {
       to: edge.to,
       label: edge.text,
       type: 'default',
-      bidirectional: edge.type === 'line'
+      bidirectional: edge.type === 'line' // Only lines (---) are bidirectional, arrows (-->) are directional
     }));
 
     return { nodes, edges };

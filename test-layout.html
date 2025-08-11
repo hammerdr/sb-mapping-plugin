@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Grid Layout</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { border: 1px solid #ccc; margin: 20px 0; }
+        .node-shape { fill: #e1f5fe; stroke: #01579b; stroke-width: 2; }
+        .node-dungeon { fill: #ffecb3; stroke: #ff8f00; }
+        .node-city { fill: #f3e5f5; stroke: #4a148c; }
+        .node-shop { fill: #e8f5e8; stroke: #2e7d32; }
+        .node-castle { fill: #fce4ec; stroke: #c2185b; }
+        .node-forest { fill: #e0f2f1; stroke: #00695c; }
+        .node-important { stroke-width: 3; stroke: #d32f2f; }
+        .edge { stroke: #666; stroke-width: 2; }
+        .node-label { font-size: 12px; fill: #333; }
+    </style>
+</head>
+<body>
+    <h1>Grid Layout Test</h1>
+    <div id="map-container" class="container"></div>
+    
+    <script type="module">
+        // Mock the required types and classes for testing
+        const testGraph = {
+            nodes: [
+                { id: 'R1', label: 'Fractured Entry', type: 'dungeon' },
+                { id: 'R2', label: 'Hall of Echoing Calculations', type: 'default', metadata: { important: true } },
+                { id: 'Hub', label: 'Central Hub', type: 'city' },
+                { id: 'R3', label: "Garrett's Workshop", type: 'shop' },
+                { id: 'R4', label: 'Gravity Garden', type: 'forest' },
+                { id: 'R5', label: "Varik's Dark Sanctum", type: 'dungeon' },
+                { id: 'R6', label: 'Probability Engine North', type: 'default', metadata: { important: true } },
+                { id: 'R7', label: "Seraphina's Observatory", type: 'castle' },
+                { id: 'R8', label: 'Command Center', type: 'castle' },
+                { id: 'R9', label: "Knights' Vault", type: 'shop' },
+                { id: 'R10', label: 'Probability Engine South', type: 'default', metadata: { important: true } },
+                { id: 'R11', label: "Aldric's Memorial", type: 'default', metadata: { important: true } },
+                { id: 'R12', label: 'Shattered Arena', type: 'dungeon' }
+            ],
+            edges: [
+                { from: 'R1', to: 'R2' },
+                { from: 'R2', to: 'Hub' },
+                { from: 'Hub', to: 'R3' },
+                { from: 'Hub', to: 'R4' },
+                { from: 'R3', to: 'R5' },
+                { from: 'R3', to: 'R6' },
+                { from: 'R4', to: 'R7' },
+                { from: 'R7', to: 'R8' },
+                { from: 'R8', to: 'R9' },
+                { from: 'R9', to: 'R12' },
+                { from: 'R5', to: 'R10' },
+                { from: 'R6', to: 'R11' },
+                { from: 'R10', to: 'R11' },
+                { from: 'R11', to: 'R9' }
+            ]
+        };
+
+        // Simplified version of the layout algorithm for testing
+        function findOptimalCenter(graph) {
+            const nodes = graph.nodes;
+            if (nodes.length === 1) return nodes[0].id;
+            
+            // Build adjacency list
+            const adjacency = new Map();
+            nodes.forEach(node => adjacency.set(node.id, []));
+            
+            graph.edges.forEach(edge => {
+                adjacency.get(edge.from)?.push(edge.to);
+                // For layout purposes, treat all connections as traversable both ways
+                adjacency.get(edge.to)?.push(edge.from);
+            });
+            
+            let bestNode = nodes[0].id;
+            let bestScore = Infinity;
+            
+            // For each node, calculate average distance to all other nodes
+            for (const node of nodes) {
+                const distances = calculateShortestPaths(node.id, adjacency, nodes);
+                const avgDistance = Array.from(distances.values()).reduce((sum, dist) => sum + dist, 0) / distances.size;
+                
+                console.log(`Node ${node.id} (${node.label}): avg distance = ${avgDistance.toFixed(2)}`);
+                
+                if (avgDistance < bestScore) {
+                    bestScore = avgDistance;
+                    bestNode = node.id;
+                }
+            }
+            
+            return bestNode;
+        }
+
+        function calculateShortestPaths(startNode, adjacency, nodes) {
+            const distances = new Map();
+            const queue = [startNode];
+            distances.set(startNode, 0);
+            
+            while (queue.length > 0) {
+                const current = queue.shift();
+                const currentDistance = distances.get(current);
+                
+                const neighbors = adjacency.get(current) || [];
+                for (const neighbor of neighbors) {
+                    if (!distances.has(neighbor)) {
+                        distances.set(neighbor, currentDistance + 1);
+                        queue.push(neighbor);
+                    }
+                }
+            }
+            
+            // For unreachable nodes, use a large distance
+            nodes.forEach(node => {
+                if (!distances.has(node.id)) {
+                    distances.set(node.id, 999);
+                }
+            });
+            
+            return distances;
+        }
+
+        function fruchtermanReingoldLayout(graph) {
+            const layout = new Map();
+            const nodes = graph.nodes;
+            const edges = graph.edges;
+            
+            // Layout parameters - adjusted for tighter, more readable layouts
+            const width = 800;
+            const height = 600;
+            const area = width * height;
+            const k = Math.sqrt(area / nodes.length) * 0.6; // Reduced optimal distance for tighter layout
+            const iterations = 100; // More iterations for better convergence
+            
+            console.log(`F-R Layout: ${nodes.length} nodes, k=${k.toFixed(2)}, ${iterations} iterations`);
+            
+            // Initialize positions randomly in a smaller central area for better convergence
+            const initWidth = width * 0.6;
+            const initHeight = height * 0.6;
+            const offsetX = (width - initWidth) / 2;
+            const offsetY = (height - initHeight) / 2;
+            
+            nodes.forEach(node => {
+                layout.set(node.id, {
+                    x: offsetX + Math.random() * initWidth,
+                    y: offsetY + Math.random() * initHeight
+                });
+            });
+            
+            // Temperature schedule - starts hot and cools down more gradually
+            let temperature = k * 2; // Start with temperature proportional to k
+            const cooling = 0.98; // Slower cooling for better convergence
+            
+            for (let iter = 0; iter < iterations; iter++) {
+                // Calculate repulsive forces between all pairs of nodes
+                const forces = new Map();
+                nodes.forEach(node => forces.set(node.id, { x: 0, y: 0 }));
+                
+                // Repulsive forces (all nodes repel each other)
+                for (let i = 0; i < nodes.length; i++) {
+                    for (let j = i + 1; j < nodes.length; j++) {
+                        const node1 = nodes[i];
+                        const node2 = nodes[j];
+                        const pos1 = layout.get(node1.id);
+                        const pos2 = layout.get(node2.id);
+                        
+                        const dx = pos1.x - pos2.x;
+                        const dy = pos1.y - pos2.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy) || 0.01; // Avoid division by zero
+                        
+                        // Fruchterman-Reingold repulsive force: fr(d) = k²/d
+                        // Add minimum distance to prevent excessive repulsion at close range
+                        const effectiveDistance = Math.max(distance, k * 0.1);
+                        const repulsiveForce = (k * k) / effectiveDistance;
+                        const fx = (dx / distance) * repulsiveForce;
+                        const fy = (dy / distance) * repulsiveForce;
+                        
+                        const force1 = forces.get(node1.id);
+                        const force2 = forces.get(node2.id);
+                        
+                        force1.x += fx;
+                        force1.y += fy;
+                        force2.x -= fx;
+                        force2.y -= fy;
+                    }
+                }
+                
+                // Attractive forces (connected nodes attract each other)
+                edges.forEach(edge => {
+                    const pos1 = layout.get(edge.from);
+                    const pos2 = layout.get(edge.to);
+                    
+                    const dx = pos2.x - pos1.x;
+                    const dy = pos2.y - pos1.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy) || 0.01;
+                    
+                    // Fruchterman-Reingold attractive force: fa(d) = d²/k
+                    // Cap the attractive force to prevent nodes from getting too close
+                    const maxAttractiveDistance = k * 3;
+                    const cappedDistance = Math.min(distance, maxAttractiveDistance);
+                    const attractiveForce = (cappedDistance * cappedDistance) / k;
+                    const fx = (dx / distance) * attractiveForce;
+                    const fy = (dy / distance) * attractiveForce;
+                    
+                    const force1 = forces.get(edge.from);
+                    const force2 = forces.get(edge.to);
+                    
+                    // Apply attractive force (nodes pull toward each other)
+                    force1.x += fx;
+                    force1.y += fy;
+                    force2.x -= fx;
+                    force2.y -= fy;
+                });
+                
+                // Apply forces with temperature-based displacement
+                nodes.forEach(node => {
+                    const pos = layout.get(node.id);
+                    const force = forces.get(node.id);
+                    
+                    const displacement = Math.sqrt(force.x * force.x + force.y * force.y) || 0.01;
+                    const limitedDisplacement = Math.min(displacement, temperature);
+                    
+                    pos.x += (force.x / displacement) * limitedDisplacement;
+                    pos.y += (force.y / displacement) * limitedDisplacement;
+                    
+                    // Keep nodes within bounds
+                    pos.x = Math.max(50, Math.min(width - 50, pos.x));
+                    pos.y = Math.max(50, Math.min(height - 50, pos.y));
+                });
+                
+                // Cool down temperature
+                temperature *= cooling;
+                
+                if (iter % 20 === 0) {
+                    console.log(`Iteration ${iter}: temperature = ${temperature.toFixed(2)}`);
+                }
+            }
+            
+            // Post-processing: resolve any remaining overlaps
+            resolveOverlaps(layout, k * 0.8);
+            
+            return layout;
+        }
+
+        function resolveOverlaps(layout, minDistance) {
+            const nodes = Array.from(layout.keys());
+            const maxIterations = 10;
+            
+            console.log(`Resolving overlaps with minimum distance: ${minDistance.toFixed(2)}`);
+            
+            for (let iter = 0; iter < maxIterations; iter++) {
+                let hasOverlap = false;
+                let overlapCount = 0;
+                
+                for (let i = 0; i < nodes.length; i++) {
+                    for (let j = i + 1; j < nodes.length; j++) {
+                        const pos1 = layout.get(nodes[i]);
+                        const pos2 = layout.get(nodes[j]);
+                        
+                        const dx = pos1.x - pos2.x;
+                        const dy = pos1.y - pos2.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        
+                        if (distance < minDistance) {
+                            hasOverlap = true;
+                            overlapCount++;
+                            
+                            // Calculate separation needed
+                            const separation = (minDistance - distance) / 2 + 1;
+                            const angle = Math.atan2(dy, dx);
+                            
+                            // Move nodes apart
+                            pos1.x += Math.cos(angle) * separation;
+                            pos1.y += Math.sin(angle) * separation;
+                            pos2.x -= Math.cos(angle) * separation;
+                            pos2.y -= Math.sin(angle) * separation;
+                            
+                            // Keep within bounds
+                            pos1.x = Math.max(50, Math.min(750, pos1.x));
+                            pos1.y = Math.max(50, Math.min(550, pos1.y));
+                            pos2.x = Math.max(50, Math.min(750, pos2.x));
+                            pos2.y = Math.max(50, Math.min(550, pos2.y));
+                        }
+                    }
+                }
+                
+                console.log(`Overlap resolution iteration ${iter}: ${overlapCount} overlaps found`);
+                if (!hasOverlap) break;
+            }
+        }
+
+
+
+        function renderGraph(graph, layout) {
+            const container = document.getElementById('map-container');
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.setAttribute('viewBox', '0 0 800 600');
+            svg.setAttribute('width', '800');
+            svg.setAttribute('height', '600');
+            
+            // Render edges - only render the original edges as specified
+            graph.edges.forEach(edge => {
+                const pos1 = layout.get(edge.from);
+                const pos2 = layout.get(edge.to);
+                if (!pos1 || !pos2) return;
+                
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', pos1.x);
+                line.setAttribute('y1', pos1.y);
+                line.setAttribute('x2', pos2.x);
+                line.setAttribute('y2', pos2.y);
+                line.setAttribute('class', 'edge');
+                svg.appendChild(line);
+            });
+            
+            // Render nodes
+            graph.nodes.forEach(node => {
+                const pos = layout.get(node.id);
+                if (!pos) return;
+                
+                const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                group.setAttribute('transform', `translate(${pos.x}, ${pos.y})`);
+                
+                // Create shape based on type
+                let shape;
+                if (node.type === 'dungeon') {
+                    shape = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+                    shape.setAttribute('points', '0,-20 20,0 0,20 -20,0');
+                    shape.setAttribute('class', 'node-shape node-dungeon');
+                } else if (node.type === 'city') {
+                    shape = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    shape.setAttribute('r', '25');
+                    shape.setAttribute('class', 'node-shape node-city');
+                } else if (node.type === 'shop') {
+                    shape = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                    shape.setAttribute('x', '-12.5');
+                    shape.setAttribute('y', '-7.5');
+                    shape.setAttribute('width', '25');
+                    shape.setAttribute('height', '15');
+                    shape.setAttribute('class', 'node-shape node-shop');
+                } else if (node.type === 'castle') {
+                    shape = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                    shape.setAttribute('x', '-17.5');
+                    shape.setAttribute('y', '-12.5');
+                    shape.setAttribute('width', '35');
+                    shape.setAttribute('height', '25');
+                    shape.setAttribute('class', 'node-shape node-castle');
+                } else if (node.type === 'forest') {
+                    shape = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    shape.setAttribute('r', '20');
+                    shape.setAttribute('class', 'node-shape node-forest');
+                } else {
+                    shape = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    shape.setAttribute('r', '20');
+                    shape.setAttribute('class', 'node-shape');
+                }
+                
+                if (node.metadata?.important) {
+                    shape.classList.add('node-important');
+                }
+                
+                group.appendChild(shape);
+                
+                // Add label
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                text.setAttribute('text-anchor', 'middle');
+                text.setAttribute('dominant-baseline', 'middle');
+                text.setAttribute('class', 'node-label');
+                text.textContent = node.label;
+                group.appendChild(text);
+                
+                svg.appendChild(group);
+            });
+            
+            container.appendChild(svg);
+        }
+
+        // Debug function to show adjacency
+        function debugAdjacency(graph) {
+            const adjacency = new Map();
+            graph.nodes.forEach(node => adjacency.set(node.id, []));
+            
+            graph.edges.forEach(edge => {
+                adjacency.get(edge.from)?.push(edge.to);
+                // For layout purposes, treat all connections as traversable both ways
+                adjacency.get(edge.to)?.push(edge.from);
+            });
+            
+            console.log('Adjacency list:');
+            for (const [nodeId, neighbors] of adjacency.entries()) {
+                const nodeName = graph.nodes.find(n => n.id === nodeId)?.label || nodeId;
+                const neighborNames = neighbors.map(id => graph.nodes.find(n => n.id === id)?.label || id);
+                console.log(`${nodeName} (${nodeId}): [${neighborNames.join(', ')}]`);
+            }
+            
+            return adjacency;
+        }
+
+        // Run the test
+        console.log('=== DEBUGGING ADJACENCY ===');
+        const adjacency = debugAdjacency(testGraph);
+        
+        console.log('\n=== USING FRUCHTERMAN-REINGOLD ALGORITHM ===');
+        const layout = fruchtermanReingoldLayout(testGraph);
+        console.log('Layout calculated:', layout);
+        
+        renderGraph(testGraph, layout);
+    </script>
+</body>
+</html>

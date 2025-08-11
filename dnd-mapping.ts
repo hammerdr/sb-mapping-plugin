@@ -29,16 +29,8 @@ export async function widget(bodyText: string): Promise<{ html: string; script?:
     }
   }
 
-  // Simple circular layout
-  const centerX = 400, centerY = 300, radius = 150;
-  const nodePositions = new Map();
-  nodes.forEach((node, i) => {
-    const angle = (i / nodes.length) * 2 * Math.PI;
-    nodePositions.set(node.id, {
-      x: centerX + Math.cos(angle) * radius,
-      y: centerY + Math.sin(angle) * radius
-    });
-  });
+  // Fruchterman-Reingold force-directed layout
+  const nodePositions = fruchtermanReingoldLayout(nodes, edges);
 
   // Generate SVG with dark mode styling
   let svg = `<svg viewBox="0 0 800 600" style="width: 100%; height: 400px; border: 1px solid #444; background: #1a1a1a;">`;
@@ -140,6 +132,162 @@ export async function widget(bodyText: string): Promise<{ html: string; script?:
       })();
     `
   };
+}
+
+function fruchtermanReingoldLayout(nodes: Array<{id: string, label: string, type?: string}>, edges: Array<{from: string, to: string, label?: string}>): Map<string, {x: number, y: number}> {
+  const layout = new Map<string, { x: number; y: number }>();
+  
+  // Layout parameters - adjusted for tighter, more readable layouts
+  const width = 800;
+  const height = 600;
+  const area = width * height;
+  const k = Math.sqrt(area / nodes.length) * 0.6; // Reduced optimal distance for tighter layout
+  const iterations = 100; // More iterations for better convergence
+  
+  // Initialize positions randomly in a smaller central area for better convergence
+  const initWidth = width * 0.6;
+  const initHeight = height * 0.6;
+  const offsetX = (width - initWidth) / 2;
+  const offsetY = (height - initHeight) / 2;
+  
+  nodes.forEach(node => {
+    layout.set(node.id, {
+      x: offsetX + Math.random() * initWidth,
+      y: offsetY + Math.random() * initHeight
+    });
+  });
+  
+  // Temperature schedule - starts hot and cools down more gradually
+  let temperature = k * 2; // Start with temperature proportional to k
+  const cooling = 0.98; // Slower cooling for better convergence
+  
+  for (let iter = 0; iter < iterations; iter++) {
+    // Calculate repulsive forces between all pairs of nodes
+    const forces = new Map<string, { x: number; y: number }>();
+    nodes.forEach(node => forces.set(node.id, { x: 0, y: 0 }));
+    
+    // Repulsive forces (all nodes repel each other)
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        const node1 = nodes[i];
+        const node2 = nodes[j];
+        const pos1 = layout.get(node1.id)!;
+        const pos2 = layout.get(node2.id)!;
+        
+        const dx = pos1.x - pos2.x;
+        const dy = pos1.y - pos2.y;
+        const distance = Math.sqrt(dx * dx + dy * dy) || 0.01; // Avoid division by zero
+        
+        // Fruchterman-Reingold repulsive force: fr(d) = k²/d
+        // Add minimum distance to prevent excessive repulsion at close range
+        const effectiveDistance = Math.max(distance, k * 0.1);
+        const repulsiveForce = (k * k) / effectiveDistance;
+        const fx = (dx / distance) * repulsiveForce;
+        const fy = (dy / distance) * repulsiveForce;
+        
+        const force1 = forces.get(node1.id)!;
+        const force2 = forces.get(node2.id)!;
+        
+        force1.x += fx;
+        force1.y += fy;
+        force2.x -= fx;
+        force2.y -= fy;
+      }
+    }
+    
+    // Attractive forces (connected nodes attract each other)
+    edges.forEach(edge => {
+      const pos1 = layout.get(edge.from)!;
+      const pos2 = layout.get(edge.to)!;
+      
+      const dx = pos2.x - pos1.x;
+      const dy = pos2.y - pos1.y;
+      const distance = Math.sqrt(dx * dx + dy * dy) || 0.01;
+      
+      // Fruchterman-Reingold attractive force: fa(d) = d²/k
+      // Cap the attractive force to prevent nodes from getting too close
+      const maxAttractiveDistance = k * 3;
+      const cappedDistance = Math.min(distance, maxAttractiveDistance);
+      const attractiveForce = (cappedDistance * cappedDistance) / k;
+      const fx = (dx / distance) * attractiveForce;
+      const fy = (dy / distance) * attractiveForce;
+      
+      const force1 = forces.get(edge.from)!;
+      const force2 = forces.get(edge.to)!;
+      
+      // Apply attractive force (nodes pull toward each other)
+      force1.x += fx;
+      force1.y += fy;
+      force2.x -= fx;
+      force2.y -= fy;
+    });
+    
+    // Apply forces with temperature-based displacement
+    nodes.forEach(node => {
+      const pos = layout.get(node.id)!;
+      const force = forces.get(node.id)!;
+      
+      const displacement = Math.sqrt(force.x * force.x + force.y * force.y) || 0.01;
+      const limitedDisplacement = Math.min(displacement, temperature);
+      
+      pos.x += (force.x / displacement) * limitedDisplacement;
+      pos.y += (force.y / displacement) * limitedDisplacement;
+      
+      // Keep nodes within bounds
+      pos.x = Math.max(50, Math.min(width - 50, pos.x));
+      pos.y = Math.max(50, Math.min(height - 50, pos.y));
+    });
+    
+    // Cool down temperature
+    temperature *= cooling;
+  }
+  
+  // Post-processing: resolve any remaining overlaps
+  resolveOverlaps(layout, nodes, k * 0.8);
+  
+  return layout;
+}
+
+function resolveOverlaps(layout: Map<string, { x: number; y: number }>, nodes: Array<{id: string}>, minDistance: number): void {
+  const nodeIds = nodes.map(n => n.id);
+  const maxIterations = 10;
+  
+  for (let iter = 0; iter < maxIterations; iter++) {
+    let hasOverlap = false;
+    
+    for (let i = 0; i < nodeIds.length; i++) {
+      for (let j = i + 1; j < nodeIds.length; j++) {
+        const pos1 = layout.get(nodeIds[i])!;
+        const pos2 = layout.get(nodeIds[j])!;
+        
+        const dx = pos1.x - pos2.x;
+        const dy = pos1.y - pos2.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance < minDistance) {
+          hasOverlap = true;
+          
+          // Calculate separation needed
+          const separation = (minDistance - distance) / 2 + 1;
+          const angle = Math.atan2(dy, dx);
+          
+          // Move nodes apart
+          pos1.x += Math.cos(angle) * separation;
+          pos1.y += Math.sin(angle) * separation;
+          pos2.x -= Math.cos(angle) * separation;
+          pos2.y -= Math.sin(angle) * separation;
+          
+          // Keep within bounds
+          pos1.x = Math.max(50, Math.min(750, pos1.x));
+          pos1.y = Math.max(50, Math.min(550, pos1.y));
+          pos2.x = Math.max(50, Math.min(750, pos2.x));
+          pos2.y = Math.max(50, Math.min(550, pos2.y));
+        }
+      }
+    }
+    
+    if (!hasOverlap) break;
+  }
 }
 
 function getNodeColor(type?: string): string {
