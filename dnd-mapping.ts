@@ -40,21 +40,21 @@ export async function widget(bodyText: string): Promise<{ html: string; script?:
     });
   });
 
-  // Generate SVG
-  let svg = `<svg viewBox="0 0 800 600" style="width: 100%; height: 400px; border: 1px solid #ccc;">`;
+  // Generate SVG with dark mode styling
+  let svg = `<svg viewBox="0 0 800 600" style="width: 100%; height: 400px; border: 1px solid #444; background: #1a1a1a;">`;
 
   // Render edges
   edges.forEach(edge => {
     const pos1 = nodePositions.get(edge.from);
     const pos2 = nodePositions.get(edge.to);
     if (pos1 && pos2) {
-      svg += `<line x1="${pos1.x}" y1="${pos1.y}" x2="${pos2.x}" y2="${pos2.y}" stroke="#666" stroke-width="2"/>`;
+      svg += `<line x1="${pos1.x}" y1="${pos1.y}" x2="${pos2.x}" y2="${pos2.y}" stroke="#888" stroke-width="2"/>`;
       if (edge.label) {
         const midX = (pos1.x + pos2.x) / 2;
         const midY = (pos1.y + pos2.y) / 2;
-        // Add semi-transparent background for edge labels
-        svg += `<rect x="${midX - edge.label.length * 3}" y="${midY - 7}" width="${edge.label.length * 6}" height="14" fill="rgba(255,255,255,0.9)" stroke="rgba(0,0,0,0.2)" stroke-width="1" rx="2" style="pointer-events: none;"/>`;
-        svg += `<text x="${midX}" y="${midY}" text-anchor="middle" dominant-baseline="middle" font-size="12" fill="#333" font-weight="500">${edge.label}</text>`;
+        // Add semi-transparent background for edge labels (dark mode)
+        svg += `<rect x="${midX - edge.label.length * 3}" y="${midY - 7}" width="${edge.label.length * 6}" height="14" fill="rgba(26,26,26,0.9)" stroke="rgba(136,136,136,0.3)" stroke-width="1" rx="2" style="pointer-events: none;"/>`;
+        svg += `<text x="${midX}" y="${midY}" text-anchor="middle" dominant-baseline="middle" font-size="12" fill="#ccc" font-weight="500" style="pointer-events: none;">${edge.label}</text>`;
       }
     }
   });
@@ -65,11 +65,11 @@ export async function widget(bodyText: string): Promise<{ html: string; script?:
     if (pos) {
       const color = getNodeColor(node.type);
       const nodeId = `node-${index}`;
-      svg += `<circle id="${nodeId}" cx="${pos.x}" cy="${pos.y}" r="25" fill="${color}" stroke="#333" stroke-width="2" style="cursor: pointer;" data-location-id="${node.id}"/>`;
+      svg += `<circle id="${nodeId}" cx="${pos.x}" cy="${pos.y}" r="25" fill="${color}" stroke="#666" stroke-width="2" style="cursor: pointer;" data-location-id="${node.id}"/>`;
       
-      // Add semi-transparent background for text readability
-      svg += `<rect x="${pos.x - node.label.length * 4}" y="${pos.y - 8}" width="${node.label.length * 8}" height="16" fill="rgba(255,255,255,0.8)" stroke="rgba(0,0,0,0.2)" stroke-width="1" rx="3" style="pointer-events: none;"/>`;
-      svg += `<text x="${pos.x}" y="${pos.y}" text-anchor="middle" dominant-baseline="middle" font-size="14" fill="#333" font-weight="bold" style="pointer-events: none;">${node.label}</text>`;
+      // Add semi-transparent background for text readability (dark mode)
+      svg += `<rect x="${pos.x - node.label.length * 4}" y="${pos.y - 8}" width="${node.label.length * 8}" height="16" fill="rgba(26,26,26,0.8)" stroke="rgba(136,136,136,0.3)" stroke-width="1" rx="3" style="pointer-events: none;"/>`;
+      svg += `<text x="${pos.x}" y="${pos.y}" text-anchor="middle" dominant-baseline="middle" font-size="14" fill="#eee" font-weight="bold" style="pointer-events: none;">${node.label}</text>`;
     }
   });
 
@@ -77,11 +77,11 @@ export async function widget(bodyText: string): Promise<{ html: string; script?:
 
   return {
     html: `
-      <div style="border: 1px solid var(--ui-border-color, #ccc); border-radius: 8px; padding: 15px; margin: 10px 0; background: var(--ui-background-color, #fff);">
-        <h3 style="margin: 0 0 15px 0; color: var(--ui-text-color, #333);">🗺️ D&D Interactive Map</h3>
+      <div style="border: 1px solid #444; border-radius: 8px; padding: 15px; margin: 10px 0; background: #2a2a2a;">
+        <h3 style="margin: 0 0 15px 0; color: #eee;">🗺️ D&D Interactive Map</h3>
         ${svg}
-        <div id="location-info" style="margin-top: 15px; padding: 10px; background: var(--ui-background-secondary, #f5f5f5); border-radius: 4px; color: var(--ui-text-color, #333); font-family: var(--ui-font-family, system-ui), -apple-system, sans-serif; border: 1px solid var(--ui-border-color, #e1e5e9);">
-          <strong style="color: var(--ui-text-color, #000);">Current Location:</strong> <span id="current-location" style="color: var(--ui-text-secondary, #666); font-weight: 500;">Click a location above</span>
+        <div id="location-info" style="margin-top: 15px; padding: 10px; background: #333; border-radius: 4px; color: #ccc; font-family: system-ui, -apple-system, sans-serif; border: 1px solid #555;">
+          <strong style="color: #eee;">Current Location:</strong> <span id="current-location" style="color: #aaa; font-weight: 500;">Click a location above</span>
         </div>
       </div>
     `,
@@ -94,7 +94,7 @@ export async function widget(bodyText: string): Promise<{ html: string; script?:
           const locationSpan = document.getElementById('current-location');
           if (locationSpan) {
             locationSpan.textContent = locationId;
-            locationSpan.style.color = '#e74c3c';
+            locationSpan.style.color = '#ff6b6b';
             locationSpan.style.fontWeight = 'bold';
           }
 
@@ -102,10 +102,10 @@ export async function widget(bodyText: string): Promise<{ html: string; script?:
           const circles = document.querySelectorAll('circle[data-location-id]');
           circles.forEach(circle => {
             if (circle.getAttribute('data-location-id') === locationId) {
-              circle.setAttribute('stroke', '#e74c3c');
+              circle.setAttribute('stroke', '#ff6b6b');
               circle.setAttribute('stroke-width', '4');
             } else {
-              circle.setAttribute('stroke', '#333');
+              circle.setAttribute('stroke', '#666');
               circle.setAttribute('stroke-width', '2');
             }
           });
@@ -114,33 +114,27 @@ export async function widget(bodyText: string): Promise<{ html: string; script?:
         // Make setCurrentLocation globally accessible
         window.setCurrentLocation = setCurrentLocation;
 
-        // Add click event listeners to circles
-        document.addEventListener('DOMContentLoaded', function() {
+        // Setup click handlers with a delay to ensure DOM is ready
+        setTimeout(function() {
           const circles = document.querySelectorAll('circle[data-location-id]');
+          console.log('Found circles:', circles.length); // Debug log
           circles.forEach(circle => {
-            circle.addEventListener('click', function() {
+            circle.addEventListener('click', function(e) {
+              e.preventDefault();
+              e.stopPropagation();
               const locationId = this.getAttribute('data-location-id');
+              console.log('Clicked location:', locationId); // Debug log
               setCurrentLocation(locationId);
             });
-          });
-        });
-
-        // If DOM is already loaded, set up listeners immediately
-        if (document.readyState === 'loading') {
-          document.addEventListener('DOMContentLoaded', setupListeners);
-        } else {
-          setupListeners();
-        }
-
-        function setupListeners() {
-          const circles = document.querySelectorAll('circle[data-location-id]');
-          circles.forEach(circle => {
-            circle.addEventListener('click', function() {
-              const locationId = this.getAttribute('data-location-id');
-              setCurrentLocation(locationId);
+            // Add visual feedback for hover
+            circle.addEventListener('mouseenter', function() {
+              this.style.opacity = '0.8';
+            });
+            circle.addEventListener('mouseleave', function() {
+              this.style.opacity = '1';
             });
           });
-        }
+        }, 100);
 
         // D&D Map widget initialized
       })();
@@ -150,13 +144,13 @@ export async function widget(bodyText: string): Promise<{ html: string; script?:
 
 function getNodeColor(type?: string): string {
   const colors: Record<string, string> = {
-    'tavern': '#ffd700',
-    'dungeon': '#8b0000',
-    'city': '#4682b4',
-    'castle': '#9370db',
-    'forest': '#228b22',
-    'shop': '#ff8c00',
-    'important': '#e74c3c'
+    'tavern': '#ffeb3b',
+    'dungeon': '#d32f2f',
+    'city': '#2196f3',
+    'castle': '#9c27b0',
+    'forest': '#4caf50',
+    'shop': '#ff9800',
+    'important': '#f44336'
   };
-  return colors[type || ''] || '#f8f9fa';
+  return colors[type || ''] || '#666';
 }
