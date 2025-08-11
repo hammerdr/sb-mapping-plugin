@@ -5,8 +5,7 @@ export async function testCommand() {
 }
 
 export async function widget(bodyText: string): Promise<{ html: string; script?: string }> {
-  console.log("D&D Map widget called!");
-  console.log("bodyText:", bodyText);
+  // Parse the D&D map from the provided text
 
   // Parse the Mermaid-style syntax
   const lines = bodyText.trim().split('\n').map(line => line.trim()).filter(line => line && !line.startsWith('%%'));
@@ -149,7 +148,7 @@ export async function widget(bodyText: string): Promise<{ html: string; script?:
           });
         }
 
-        console.log("D&D Map widget loaded successfully!");
+        // D&D Map widget initialized
       })();
     `
   };
