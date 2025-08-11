@@ -1,0 +1,9 @@
+name: dnd-mapping
+functions:
+  testCommand:
+    path: dnd-mapping.ts:testCommand
+    command:
+      name: "Test D&D Plugin"
+  dndMapWidget:
+    path: dnd-mapping.ts:widget
+    codeWidget: dndmap

@@ -1,0 +1,8 @@
+{
+  "imports": {
+    "@silverbulletmd/silverbullet": "jsr:@silverbulletmd/silverbullet@^2.0.0"
+  },
+  "tasks": {
+    "build": "silverbullet plug:compile dnd-mapping.plug.yaml"
+  }
+}

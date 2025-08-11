@@ -1,0 +1,339 @@
+/* D&D Mapping Plugin Styles */
+
+.dndmap-container {
+  border: 1px solid var(--ui-border-color, #e1e5e9);
+  border-radius: 8px;
+  background: var(--ui-background-color, #ffffff);
+  margin: 1rem 0;
+  overflow: hidden;
+}
+
+.dndmap-svg {
+  display: block;
+  width: 100%;
+  background: var(--ui-background-color, #ffffff);
+  border-bottom: 1px solid var(--ui-border-color, #e1e5e9);
+}
+
+/* Edge styles */
+.edge {
+  stroke: var(--ui-text-color, #333333);
+  stroke-width: 2px;
+  fill: none;
+  opacity: 0.6;
+}
+
+.edge.bidirectional {
+  stroke-dasharray: 5,5;
+}
+
+.edge-default {
+  stroke: var(--ui-text-color, #666666);
+}
+
+.edge-path {
+  stroke: #8b4513;
+}
+
+.edge-road {
+  stroke: #696969;
+  stroke-width: 3px;
+}
+
+.edge-secret {
+  stroke: #ff6b6b;
+  stroke-dasharray: 3,3;
+  opacity: 0.8;
+}
+
+.edge-teleport {
+  stroke: #9b59b6;
+  stroke-dasharray: 8,2;
+  opacity: 0.9;
+}
+
+.edge-label {
+  font-size: 12px;
+  fill: var(--ui-text-color, #333333);
+  font-family: var(--ui-font-family, system-ui);
+  background: var(--ui-background-color, #ffffff);
+  padding: 2px 4px;
+}
+
+/* Node styles */
+.node-group {
+  transition: all 0.2s ease;
+}
+
+.node-group:hover {
+  transform: scale(1.1);
+}
+
+.node-group.hover .node-shape {
+  stroke-width: 3px;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+}
+
+.node-shape {
+  stroke: var(--ui-border-color, #333333);
+  stroke-width: 2px;
+  transition: all 0.2s ease;
+}
+
+.node-label {
+  font-size: 14px;
+  font-weight: 500;
+  fill: var(--ui-text-color, #333333);
+  font-family: var(--ui-font-family, system-ui);
+  pointer-events: none;
+}
+
+/* Node type styles */
+.node-default {
+  fill: #f8f9fa;
+}
+
+.node-tavern {
+  fill: #ffd700;
+}
+
+.node-dungeon {
+  fill: #8b0000;
+}
+
+.node-city {
+  fill: #4682b4;
+}
+
+.node-castle {
+  fill: #9370db;
+}
+
+.node-forest {
+  fill: #228b22;
+}
+
+.node-shop {
+  fill: #ff8c00;
+}
+
+/* Node state styles */
+.node-group.current-location .node-shape {
+  stroke: #e74c3c;
+  stroke-width: 4px;
+  fill: #fff5f5;
+  animation: pulse 2s infinite;
+}
+
+.node-group.visited .node-shape {
+  opacity: 0.8;
+  stroke-dasharray: 2,2;
+}
+
+.node-group.important .node-shape {
+  stroke: #f39c12;
+  stroke-width: 3px;
+}
+
+@keyframes pulse {
+  0% { stroke-opacity: 1; }
+  50% { stroke-opacity: 0.5; }
+  100% { stroke-opacity: 1; }
+}
+
+/* Location Panel Styles */
+.dnd-location-panel {
+  padding: 1rem;
+  background: var(--ui-background-color, #ffffff);
+  font-family: var(--ui-font-family, system-ui);
+  min-height: 200px;
+}
+
+.location-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--ui-border-color, #e1e5e9);
+}
+
+.location-title {
+  margin: 0;
+  font-size: 1.5rem;
+  color: var(--ui-text-color, #333333);
+}
+
+.location-type {
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.location-type-default { background: #f8f9fa; color: #495057; }
+.location-type-tavern { background: #fff3cd; color: #856404; }
+.location-type-dungeon { background: #f8d7da; color: #721c24; }
+.location-type-city { background: #d1ecf1; color: #0c5460; }
+.location-type-castle { background: #e2e3f1; color: #383d41; }
+.location-type-forest { background: #d4edda; color: #155724; }
+.location-type-shop { background: #ffeaa7; color: #856404; }
+
+.location-description {
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background: var(--ui-background-secondary, #f8f9fa);
+  border-radius: 4px;
+  font-style: italic;
+  color: var(--ui-text-secondary, #666666);
+}
+
+.connections-section,
+.notes-section,
+.history-section {
+  margin-bottom: 1rem;
+}
+
+.connections-section h4,
+.notes-section h4,
+.history-section h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1rem;
+  color: var(--ui-text-color, #333333);
+}
+
+.connections-list,
+.history-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.connection-item,
+.history-item {
+  margin-bottom: 0.5rem;
+}
+
+.connection-button,
+.history-button {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  background: var(--ui-background-secondary, #f8f9fa);
+  border: 1px solid var(--ui-border-color, #e1e5e9);
+  border-radius: 4px;
+  color: var(--ui-text-color, #333333);
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+
+.connection-button:hover,
+.history-button:hover {
+  background: var(--ui-background-hover, #e9ecef);
+  border-color: var(--ui-border-hover, #adb5bd);
+}
+
+.path-details {
+  font-size: 0.8rem;
+  color: var(--ui-text-secondary, #666666);
+  margin-top: 0.25rem;
+  padding-left: 0.75rem;
+}
+
+.location-notes {
+  padding: 0.75rem;
+  background: var(--ui-background-secondary, #f8f9fa);
+  border-radius: 4px;
+  border-left: 4px solid var(--ui-accent-color, #007bff);
+}
+
+.no-location-message,
+.location-not-found {
+  text-align: center;
+  padding: 2rem;
+  color: var(--ui-text-secondary, #666666);
+}
+
+.no-location-message h3,
+.location-not-found h3 {
+  margin-top: 0;
+  color: var(--ui-text-color, #333333);
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .dndmap-svg {
+    height: 300px;
+  }
+  
+  .location-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+  
+  .location-title {
+    font-size: 1.25rem;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .dndmap-container {
+    border-color: #404040;
+    background: #1a1a1a;
+  }
+  
+  .dndmap-svg {
+    background: #1a1a1a;
+    border-bottom-color: #404040;
+  }
+  
+  .edge {
+    stroke: #cccccc;
+  }
+  
+  .edge-label {
+    fill: #cccccc;
+  }
+  
+  .node-label {
+    fill: #cccccc;
+  }
+  
+  .node-shape {
+    stroke: #cccccc;
+  }
+  
+  .dnd-location-panel {
+    background: #1a1a1a;
+  }
+  
+  .location-title {
+    color: #cccccc;
+  }
+  
+  .location-description,
+  .location-notes {
+    background: #2a2a2a;
+    color: #aaaaaa;
+  }
+  
+  .connection-button,
+  .history-button {
+    background: #2a2a2a;
+    border-color: #404040;
+    color: #cccccc;
+  }
+  
+  .connection-button:hover,
+  .history-button:hover {
+    background: #3a3a3a;
+    border-color: #555555;
+  }
+}
