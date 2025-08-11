@@ -59,18 +59,24 @@ export async function widget(bodyText: string): Promise<{ html: string; script?:
       if (edge.label) {
         const midX = (pos1.x + pos2.x) / 2;
         const midY = (pos1.y + pos2.y) / 2;
-        svg += `<text x="${midX}" y="${midY}" text-anchor="middle" font-size="12" fill="#333">${edge.label}</text>`;
+        // Add semi-transparent background for edge labels
+        svg += `<rect x="${midX - edge.label.length * 3}" y="${midY - 7}" width="${edge.label.length * 6}" height="14" fill="rgba(255,255,255,0.9)" stroke="rgba(0,0,0,0.2)" stroke-width="1" rx="2" style="pointer-events: none;"/>`;
+        svg += `<text x="${midX}" y="${midY}" text-anchor="middle" dominant-baseline="middle" font-size="12" fill="#333" font-weight="500">${edge.label}</text>`;
       }
     }
   });
 
   // Render nodes
-  nodes.forEach(node => {
+  nodes.forEach((node, index) => {
     const pos = nodePositions.get(node.id);
     if (pos) {
       const color = getNodeColor(node.type);
-      svg += `<circle cx="${pos.x}" cy="${pos.y}" r="25" fill="${color}" stroke="#333" stroke-width="2" style="cursor: pointer;" onclick="setCurrentLocation('${node.id}')"/>`;
-      svg += `<text x="${pos.x}" y="${pos.y}" text-anchor="middle" dominant-baseline="middle" font-size="14" fill="#333" style="pointer-events: none;">${node.label}</text>`;
+      const nodeId = `node-${index}`;
+      svg += `<circle id="${nodeId}" cx="${pos.x}" cy="${pos.y}" r="25" fill="${color}" stroke="#333" stroke-width="2" style="cursor: pointer;" data-location-id="${node.id}"/>`;
+      
+      // Add semi-transparent background for text readability
+      svg += `<rect x="${pos.x - node.label.length * 4}" y="${pos.y - 8}" width="${node.label.length * 8}" height="16" fill="rgba(255,255,255,0.8)" stroke="rgba(0,0,0,0.2)" stroke-width="1" rx="3" style="pointer-events: none;"/>`;
+      svg += `<text x="${pos.x}" y="${pos.y}" text-anchor="middle" dominant-baseline="middle" font-size="14" fill="#333" font-weight="bold" style="pointer-events: none;">${node.label}</text>`;
     }
   });
 
@@ -78,48 +84,73 @@ export async function widget(bodyText: string): Promise<{ html: string; script?:
 
   return {
     html: `
-      <div style="border: 1px solid #ccc; border-radius: 8px; padding: 15px; margin: 10px 0;">
-        <h3 style="margin: 0 0 15px 0;">🗺️ D&D Interactive Map</h3>
+      <div style="border: 1px solid var(--ui-border-color, #ccc); border-radius: 8px; padding: 15px; margin: 10px 0; background: var(--ui-background-color, #fff);">
+        <h3 style="margin: 0 0 15px 0; color: var(--ui-text-color, #333);">🗺️ D&D Interactive Map</h3>
         ${svg}
-        <div id="location-info" style="margin-top: 15px; padding: 10px; background: #f5f5f5; border-radius: 4px;">
-          <strong>Current Location:</strong> <span id="current-location">Click a location above</span>
+        <div id="location-info" style="margin-top: 15px; padding: 10px; background: var(--ui-background-secondary, #f5f5f5); border-radius: 4px; color: var(--ui-text-color, #333); font-family: var(--ui-font-family, system-ui), -apple-system, sans-serif; border: 1px solid var(--ui-border-color, #e1e5e9);">
+          <strong style="color: var(--ui-text-color, #000);">Current Location:</strong> <span id="current-location" style="color: var(--ui-text-secondary, #666); font-weight: 500;">Click a location above</span>
         </div>
       </div>
     `,
     script: `
-      let currentLocation = null;
+      (function() {
+        let currentLocation = null;
 
-      function setCurrentLocation(locationId) {
-        currentLocation = locationId;
-        document.getElementById('current-location').textContent = locationId;
-
-        // Update visual highlighting
-        const circles = document.querySelectorAll('circle');
-        circles.forEach(circle => {
-          if (circle.getAttribute('onclick').includes(locationId)) {
-            circle.setAttribute('stroke', '#e74c3c');
-            circle.setAttribute('stroke-width', '4');
-          } else {
-            circle.setAttribute('stroke', '#333');
-            circle.setAttribute('stroke-width', '2');
+        function setCurrentLocation(locationId) {
+          currentLocation = locationId;
+          const locationSpan = document.getElementById('current-location');
+          if (locationSpan) {
+            locationSpan.textContent = locationId;
+            locationSpan.style.color = '#e74c3c';
+            locationSpan.style.fontWeight = 'bold';
           }
+
+          // Update visual highlighting
+          const circles = document.querySelectorAll('circle[data-location-id]');
+          circles.forEach(circle => {
+            if (circle.getAttribute('data-location-id') === locationId) {
+              circle.setAttribute('stroke', '#e74c3c');
+              circle.setAttribute('stroke-width', '4');
+            } else {
+              circle.setAttribute('stroke', '#333');
+              circle.setAttribute('stroke-width', '2');
+            }
+          });
+        }
+
+        // Make setCurrentLocation globally accessible
+        window.setCurrentLocation = setCurrentLocation;
+
+        // Add click event listeners to circles
+        document.addEventListener('DOMContentLoaded', function() {
+          const circles = document.querySelectorAll('circle[data-location-id]');
+          circles.forEach(circle => {
+            circle.addEventListener('click', function() {
+              const locationId = this.getAttribute('data-location-id');
+              setCurrentLocation(locationId);
+            });
+          });
         });
-      }
 
-      function getNodeColor(type) {
-        const colors = {
-          'tavern': '#ffd700',
-          'dungeon': '#8b0000',
-          'city': '#4682b4',
-          'castle': '#9370db',
-          'forest': '#228b22',
-          'shop': '#ff8c00',
-          'important': '#e74c3c'
-        };
-        return colors[type] || '#f8f9fa';
-      }
+        // If DOM is already loaded, set up listeners immediately
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', setupListeners);
+        } else {
+          setupListeners();
+        }
 
-      console.log("D&D Map widget loaded successfully!");
+        function setupListeners() {
+          const circles = document.querySelectorAll('circle[data-location-id]');
+          circles.forEach(circle => {
+            circle.addEventListener('click', function() {
+              const locationId = this.getAttribute('data-location-id');
+              setCurrentLocation(locationId);
+            });
+          });
+        }
+
+        console.log("D&D Map widget loaded successfully!");
+      })();
     `
   };
 }
