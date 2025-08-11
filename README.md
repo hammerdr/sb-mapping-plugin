@@ -74,7 +74,7 @@ graph TD
 
 ```lua
 config.set("plugs", {
-  "github:yourusername/sb-mapping-plugin/dnd-mapping.plug.js"
+  "github:hammerdr/sb-mapping-plugin/dnd-mapping.plug.js"
 })
 ```
 
